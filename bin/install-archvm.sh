@@ -6,13 +6,14 @@ if [ ! -f $disk ]; then
   echo 'Disk file not found!'
   exit 1
 fi
-sudo modprobe nbd max_part=16
+sudo modprobe nbd
 sudo qemu-nbd -c /dev/nbd0 $disk --cache=unsafe --discard=unmap
-sudo parted /dev/nbd0 mklabel gpt
-sudo parted /dev/nbd0 mkpart BOOT fat32 0% 200MiB
-sudo parted /dev/nbd0 set 1 esp on
-sudo parted /dev/nbd0 mkpart ROOT ext4 200MiB 100%
-sudo parted /dev/nbd0 print
+sudo parted -s -a optimal -- /dev/nbd0 \
+  mklabel gpt \
+  mkpart BOOT fat32 0% 200MiB \
+  set 1 esp on \
+  mkpart ROOT ext4 200MiB -0 \
+  print
 
 sudo mkfs.fat -F32 /dev/nbd0p1
 sudo mkfs.ext4 /dev/nbd0p2
@@ -23,10 +24,6 @@ sudo mkdir /tmp/mnt/boot
 sudo mount /dev/nbd0p1 /tmp/mnt/boot
 
 sudo pacstrap /tmp/mnt base linux linux-firmware openssh bash-completion networkmanager vi net-tools curl htop tree
-sudo tee -a /tmp/mnt/etc/fstab << EOF
-/dev/vda2 / ext4 rw,noatime 0 1
-/dev/vda1 /boot vfat rw,noatime,fmask=0022,dmask=0022,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro 0 2
-EOF
 
 sudo arch-chroot /tmp/mnt ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 sudo arch-chroot /tmp/mnt hwclock --systohc
